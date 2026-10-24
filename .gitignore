@@ -1,3 +1,7 @@
+# Project-specific:
+flights-1m.json
+
+# Node template:
 # Logs
 logs
 *.log
