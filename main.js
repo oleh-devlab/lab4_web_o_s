@@ -1,4 +1,6 @@
 import { program, InvalidArgumentError } from 'commander';
+import { access, readFile, writeFile } from 'node:fs';
+import http from 'node:http';
 
 function parsePort(value) {
   const n = Number(value);
@@ -18,6 +20,8 @@ program
 
 program.parse();
 const options = program.opts();
+
+const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
 // Значення з файлу як число: число лишається числом, рядок-число перетворюється,
 // усе інше (відсутнє, null, порожнє, нечислове) стає null.
@@ -65,3 +69,36 @@ function processData(text, showDate, airtimeMin) {
 
   return result;
 }
+
+const server = http.createServer((req, res) => {
+  let url;
+  try {
+    url = new URL(req.url, 'http://localhost');
+  } catch {
+    res.writeHead(400, JSON_HEADERS);
+    res.end(JSON.stringify({ error: 'Некоректний URL запиту' }));
+    return;
+  }
+
+  if (url.pathname !== '/') {
+    res.writeHead(404, JSON_HEADERS);
+    res.end(JSON.stringify({ error: `Маршрут "${url.pathname}" не знайдено` }));
+    return;
+  }
+
+  res.writeHead(200, JSON_HEADERS);
+  res.end(JSON.stringify([]));
+});
+
+server.on('error', (err) => {
+  console.error(`Не вдалося запустити сервер: ${err.message}`);
+  process.exit(1);
+});
+
+access(options.input, (err) => {
+  if (err) program.error('Cannot find input file');
+
+  server.listen(options.port, options.host, () => {
+    console.log(`Сервер запущено: http://${options.host}:${options.port}/`);
+  });
+});
