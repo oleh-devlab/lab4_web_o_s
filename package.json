@@ -13,7 +13,7 @@
   "license": "ISC",
   "author": "Oleh",
   "type": "module",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
     "start": "node main.js",
     "dev": "node --watch main.js"
