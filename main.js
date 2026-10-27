@@ -70,19 +70,38 @@ function processData(text, showDate, airtimeMin) {
   return result;
 }
 
+// Надсилає JSON-відповідь; якщо задано --output, спершу записує її у файл.
+function sendJson(res, status, body) {
+  const json = JSON.stringify(body);
+
+  if (options.output === undefined) {
+    res.writeHead(status, JSON_HEADERS);
+    res.end(json);
+    return;
+  }
+
+  writeFile(options.output, json, 'utf8', (err) => {
+    if (err) {
+      res.writeHead(500, JSON_HEADERS);
+      res.end(JSON.stringify({ error: `Не вдалося записати відповідь у файл "${options.output}"` }));
+      return;
+    }
+    res.writeHead(status, JSON_HEADERS);
+    res.end(json);
+  });
+}
+
 const server = http.createServer((req, res) => {
   let url;
   try {
     url = new URL(req.url, 'http://localhost');
   } catch {
-    res.writeHead(400, JSON_HEADERS);
-    res.end(JSON.stringify({ error: 'Некоректний URL запиту' }));
+    sendJson(res, 400, { error: 'Некоректний URL запиту' });
     return;
   }
 
   if (url.pathname !== '/') {
-    res.writeHead(404, JSON_HEADERS);
-    res.end(JSON.stringify({ error: `Маршрут "${url.pathname}" не знайдено` }));
+    sendJson(res, 404, { error: `"${url.pathname}" не знайдено` });
     return;
   }
 
@@ -93,8 +112,7 @@ const server = http.createServer((req, res) => {
   if (rawMin !== null) {
     airtimeMin = Number(rawMin);
     if (rawMin.trim() === '' || !Number.isFinite(airtimeMin)) {
-      res.writeHead(400, JSON_HEADERS);
-      res.end(JSON.stringify({ error: 'Параметр airtime_min має бути числом' }));
+      sendJson(res, 400, { error: 'Параметр airtime_min має бути числом' });
       return;
     }
   }
@@ -102,8 +120,7 @@ const server = http.createServer((req, res) => {
   readFile(options.input, 'utf8', (err, text) => {
     if (err) {
       const message = err.code === 'ENOENT' ? 'Файл даних не знайдено' : `Не вдалося прочитати файл даних: ${err.message}`;
-      res.writeHead(500, JSON_HEADERS);
-      res.end(JSON.stringify({ error: message }));
+      sendJson(res, 500, { error: message });
       return;
     }
 
@@ -111,13 +128,11 @@ const server = http.createServer((req, res) => {
     try {
       result = processData(text, showDate, airtimeMin);
     } catch (parseErr) {
-      res.writeHead(500, JSON_HEADERS);
-      res.end(JSON.stringify({ error: parseErr.message }));
+      sendJson(res, 500, { error: parseErr.message });
       return;
     }
 
-    res.writeHead(200, JSON_HEADERS);
-    res.end(JSON.stringify(result));
+    sendJson(res, 200, result);
   });
 });
 
